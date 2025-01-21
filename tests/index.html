@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test FastAPI Image API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .image-preview {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .image-preview img {
+            max-width: 100%;
+            margin-bottom: 10px;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-left: 5px solid #4caf50;
+            border-radius: 5px;
+        }
+        .result-images {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        .result-images img {
+            width: 30%; /* Adjust this percentage to control the size of images */
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FastAPI Image Processing Test</h1>
+        <form id="upload-form">
+            <label for="image-input">Upload an image:</label>
+            <input type="file" id="image-input" accept="image/*" required>
+            <button type="submit">Process Image</button>
+        </form>
+
+        <div class="image-preview" id="image-preview">
+            <h3>Preview:</h3>
+            <img id="preview-img" src="" alt="Image preview">
+        </div>
+
+        <div class="results" id="results" style="display: none;">
+            <h3>Results:</h3>
+            <p><strong>Green Pixels:</strong> <span id="green-pixels"></span></p>
+            <p><strong>Non-Green Pixels:</strong> <span id="non-green-pixels"></span></p>
+            <p><strong>Severity:</strong> <span id="severity"></span>%</p>
+            <p><strong>Classname:</strong> <span id="classname"></span></p>
+            <p><strong>Confidence:</strong> <span id="confidence"></span>%</p>
+
+            <h4>Processed Images:</h4>
+            <div class="result-images">
+                <img id="green-only-img" src="" alt="Green only image">
+                <img id="non-green-only-img" src="" alt="Non-green only image">
+                <img id="detection-img" src="" alt="Detection image">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const imageInput = document.getElementById('image-input');
+        const previewImg = document.getElementById('preview-img');
+        const resultsDiv = document.getElementById('results');
+        const greenPixelsSpan = document.getElementById('green-pixels');
+        const nonGreenPixelsSpan = document.getElementById('non-green-pixels');
+        const severitySpan = document.getElementById('severity');
+        const greenOnlyImg = document.getElementById('green-only-img');
+        const nonGreenOnlyImg = document.getElementById('non-green-only-img');
+        const detectionImg = document.getElementById('detection-img');
+        const classnameSpan = document.getElementById('classname');
+        const confidenceSpan = document.getElementById('confidence');
+
+        // Show image preview
+        imageInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const file = imageInput.files[0];
+            if (!file) {
+                alert('Please upload an image!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Image = e.target.result.split(',')[1]; // Get base64 string
+
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/predict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ image: base64Image }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Error in processing image!');
+                    }
+
+                    const result = await response.json();
+
+                    // Display results
+                    greenPixelsSpan.textContent = result.green_pixel_count;
+                    nonGreenPixelsSpan.textContent = result.non_green_pixel_count;
+                    severitySpan.textContent = result.severity.toFixed(2);
+                    classnameSpan.textContent = result.classname;
+                    confidenceSpan.textContent = result.confidence;
+
+                    greenOnlyImg.src = result.green_only_image;
+                    nonGreenOnlyImg.src = result.non_green_only_image;
+                    detectionImg.src = result.detection_image;
+
+                    resultsDiv.style.display = 'block';
+                } catch (error) {
+                    alert('Failed to process the image. Please try again.');
+                    console.error(error);
+                }
+            };
+
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>
